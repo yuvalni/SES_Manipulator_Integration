@@ -167,7 +167,7 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	ax1.LowerLimit = -10;
 
 	Axis ax2;
-	strcpy_s(ax2.Name, 2, "Tilt");
+	strcpy_s(ax2.Name, 5, "Tilt");
 	strcpy_s(ax2.Units, 4, "Deg");
 	ax2.Rotation = true;
 	ax2.UseLimits = true;
@@ -191,6 +191,7 @@ ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done mo
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
+	const char* move_buf = "X"
 	return 0;
 }
 
@@ -202,9 +203,9 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed)
 		const char* sendbuf = "X?";
 		send_data(sendbuf);
 		curPos[0] = recv_data();
-		const char* sendbuf = "Y?";
+		sendbuf = "Y?";
 		send_data(sendbuf);
-		curPos[1] = recv_data()
+		curPos[1] = recv_data();
 	}
 
 	return 0;
