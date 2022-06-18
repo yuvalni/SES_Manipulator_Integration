@@ -5,7 +5,8 @@
 #include "HW.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <stdio.h>
+#include <string>
+
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -209,6 +210,7 @@ ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done mo
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
 	const char* move_buf = "MOVP5.5";
+	
 	send_data(move_buf);
 	return 0;
 }
@@ -216,15 +218,14 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 
 int GDS_MA_ReadPos(double* curPos, double* curSpeed)
 {
-	for (int i = 0; i < 1; ++i)
-	{
-		const char* sendbuf = "X?";
+		
+		const char* sendbuf = "P?";
 		send_data(sendbuf);
 		curPos[0] = recv_data();
-		sendbuf = "Y?";
+
+		sendbuf = "T?";
 		send_data(sendbuf);
 		curPos[1] = recv_data();
-	}
 
 	return 0;
 }

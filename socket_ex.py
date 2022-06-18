@@ -16,7 +16,7 @@ class SES_API:
         self.PORT = 5000  # Port to listen on (non-privileged ports are > 1023)
         self.status =  Status.DONE
         self.conn = None
-        self.pos = {"P":3.14,"tilt":2.14}
+        self.pos = {"P":3.14,"T":2.14}
         self.move_reg = re.compile('(X|Y|Z|P|T|F)([+-]?([0-9]*[.])?[0-9]+)') #capturing X or Y or Z and float number
         self.pos_reg = re.compile('(X|Y|Z|P|T|F)(\?)') #capturing X or Y or Z and float number
         #P - polar T- tilt  F - phi
@@ -39,15 +39,15 @@ class SES_API:
         
         
     def send_pos(self,data):
-         axis = self.pos_reg.match(data.decode("UTF-8")).group(0)
-         #get number
-         self.conn.send("2.17\n".encode())
+         #axis = self.pos_reg.search(data.decode("UTF-8")).group(0)
+         axis = data.decode("UTF-8").replace("?","")
+         self.conn.send("{}\n".format(self.pos[axis]).encode())
          
     def stop(self):
         pass
     
     def send_status(self):
-        print('send status',self.status)
+        #print('send status',self.status)
         self.conn.send("{}\n".format(self.status.value).encode())
     
     def handle_req(self,data):
