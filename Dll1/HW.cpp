@@ -108,7 +108,7 @@ double recv_data() {
 	return atof(recvbuf);
 }
 
-int recv_status_data() {
+ManipulatorStatus recv_status_data() {
 	int Result;
 	Result = recv(ConnectSocket, recvbuf, recvbuflen, 0);
 	if (Result > 0) {
@@ -119,7 +119,7 @@ int recv_status_data() {
 	else
 		printf("recv failed: %d\n", WSAGetLastError());
 
-	return atoi(recvbuf);
+	return static_cast<ManipulatorStatus>(atoi(recvbuf));
 
 }
 
@@ -208,7 +208,7 @@ ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done mo
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
-	const char* move_buf = "MOVX5.5";
+	const char* move_buf = "MOVP5.5";
 	send_data(move_buf);
 	return 0;
 }

@@ -23,9 +23,13 @@ class SES_API:
     
     def move(self,data):
         self.status = Status.MOVING
-        m= self.move_reg.match(data.decode("UTF-8"))
-        axis, pos  = m.group(0), m.group(1)
-        print(axis,pos)
+        print(data.decode("UTF-8"))
+        m= self.move_reg.search(data.decode("UTF-8"))
+        if m:
+            axis, pos  = m.group(1), m.group(2)
+            print(axis,pos)
+            self.pos[axis] = pos
+        
         # here we want to run a thread that keeps checking if position is arrived. Maybe not here but in the main
         # motor script!!
         # but, then set this class to DONE.
@@ -43,7 +47,7 @@ class SES_API:
         pass
     
     def send_status(self):
-        print('send status')
+        print('send status',self.status)
         self.conn.send("{}\n".format(self.status.value).encode())
     
     def handle_req(self,data):
@@ -56,8 +60,9 @@ class SES_API:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.HOST, self.PORT))
             s.listen()
-            print("listening")
+            
             while True:
+                print("listening")
                 self.conn, addr = s.accept()
                 with self.conn:
                     print("Connected by {}".format(addr))
@@ -74,9 +79,9 @@ class SES_API:
                         else:
                             print(data) # anything else pleas?
                         
-                    if data.decode("UTF-8")=="exit":
-                        # closing connection, but awaiting another one...
-                        break
+                        if data.decode("UTF-8")=="exit":
+                            # closing connection, but awaiting another one...
+                            break
                     sleep(0.1)
                     
                 sleep(0.1)
