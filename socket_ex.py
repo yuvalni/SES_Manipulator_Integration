@@ -25,6 +25,7 @@ class SES_API:
         self.status = Status.MOVING
         m= self.move_reg.match(data.decode("UTF-8"))
         axis, pos  = m.group(0), m.group(1)
+        print(axis,pos)
         # here we want to run a thread that keeps checking if position is arrived. Maybe not here but in the main
         # motor script!!
         # but, then set this class to DONE.

@@ -108,6 +108,21 @@ double recv_data() {
 	return atof(recvbuf);
 }
 
+int recv_status_data() {
+	int Result;
+	Result = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+	if (Result > 0) {
+		printf("Bytes received: %d\n", Result);
+	}
+	else if (Result == 0)
+		printf("Connection closed\n");
+	else
+		printf("recv failed: %d\n", WSAGetLastError());
+
+	return atoi(recvbuf);
+
+}
+
 int GDS_MA_Initialize(void* mainWindow) //     Use this function to initialize objects and structures in a manipulator
 										//hardware library.This function is called when a new manipulator hardware
 										//library is loaded in the manipulator library.
@@ -185,13 +200,16 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 
 
 ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done movement ETC...
-{
-	return Done;
+{	
+	const char* move_buf = "STATUS?";
+	send_data(move_buf);
+	return recv_status_data();
 }
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
-	const char* move_buf = "X"
+	const char* move_buf = "MOVX5.5";
+	send_data(move_buf);
 	return 0;
 }
 
@@ -213,5 +231,7 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed)
 
 
 int GDS_MA_Stop() {
+	const char* sendbuf = "STOP";
+	send_data(sendbuf);
 	return 0;
 }
