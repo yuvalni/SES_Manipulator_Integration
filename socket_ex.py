@@ -29,9 +29,12 @@ class SES_API:
             axis, pos  = m.group(1), m.group(2)
             print(axis,pos)
             self.pos[axis] = pos
+            
+            
+        
         
         # here we want to run a thread that keeps checking if position is arrived. Maybe not here but in the main
-        # motor script!!
+        
         # but, then set this class to DONE.
         
         
@@ -41,9 +44,12 @@ class SES_API:
     def send_pos(self,data):
          #axis = self.pos_reg.search(data.decode("UTF-8")).group(0)
          axis = data.decode("UTF-8").replace("?","")
+         #print('sending pos')
+         #print("{}\n".format(self.pos[axis]))
          self.conn.send("{}\n".format(self.pos[axis]).encode())
          
     def stop(self):
+        print('stoping')
         pass
     
     def send_status(self):

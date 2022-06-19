@@ -209,9 +209,12 @@ ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done mo
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
-	const char* move_buf = "MOVP5.5";
-	
-	send_data(move_buf);
+	std::string str = "MOVP";
+	str += std::to_string(position[0]);
+	str += "T" + std::to_string(position[1]);
+	const char* c = str.c_str();
+
+	send_data(c);
 	return 0;
 }
 
