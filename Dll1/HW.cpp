@@ -248,7 +248,7 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 {
 	std::string str = "MOVP";
 	str += std::to_string(position[0]);
-	str += "T" + std::to_string(position[1]);
+	//str += "T" + std::to_string(position[1]); //We only want to change polar!
 	const char* c = str.c_str();
 
 	send_data(c);

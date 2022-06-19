@@ -31,9 +31,9 @@ class SES_API:
             print(axis,pos)
             self.pos[axis] = pos
             
-            axis, pos  = m[1][0] , m[1][1]
-            print(axis,pos)
-            self.pos[axis] = pos
+            #axis, pos  = m[1][0] , m[1][1]
+            #print(axis,pos)
+            #self.pos[axis] = pos
             
             
         
