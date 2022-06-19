@@ -16,7 +16,7 @@ class SES_API:
         self.PORT = 5000  # Port to listen on (non-privileged ports are > 1023)
         self.status =  Status.DONE
         self.conn = None
-        self.pos = {"P":3.14,"T":2.14}
+        self.pos = {"P":3.14,"T":2.14,"F":86,"X":-2,"Y":8,"Z":-123}
         self.move_reg = re.compile('(X|Y|Z|P|T|F)([+-]?([0-9]*[.])?[0-9]+)') #capturing X or Y or Z and float number
         self.pos_reg = re.compile('(X|Y|Z|P|T|F)(\?)') #capturing X or Y or Z and float number
         #P - polar T- tilt  F - phi
@@ -24,9 +24,14 @@ class SES_API:
     def move(self,data):
         self.status = Status.MOVING
         print(data.decode("UTF-8"))
-        m= self.move_reg.search(data.decode("UTF-8"))
+        m = self.move_reg.findall(data.decode("UTF-8"))
+        print (m)
         if m:
-            axis, pos  = m.group(1), m.group(2)
+            axis, pos  = m[0][0] , m[0][1]
+            print(axis,pos)
+            self.pos[axis] = pos
+            
+            axis, pos  = m[1][0] , m[1][1]
             print(axis,pos)
             self.pos[axis] = pos
             

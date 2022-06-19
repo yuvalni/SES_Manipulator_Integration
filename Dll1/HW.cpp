@@ -175,7 +175,7 @@ char* GDS_MA_GetLibInfo() {
 
 int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	Axis ax1;
-	strcpy_s(ax1.Name, 2, "P");
+	strcpy_s(ax1.Name, 6 ,"Polar");
 	strcpy_s(ax1.Units, 4, "Deg");
 	ax1.Rotation = true;
 	ax1.UseLimits = true;
@@ -189,9 +189,46 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	ax2.UseLimits = true;
 	ax2.UpperLimit = 10;
 	ax2.LowerLimit = -10;
-	manipulatorInfo->AxisCount = 2;
+
+	Axis ax3;
+	strcpy_s(ax3.Name, 4, "phi");
+	strcpy_s(ax3.Units, 4, "Deg");
+	ax3.Rotation = true;
+	ax3.UseLimits = true;
+	ax3.UpperLimit = 10;
+	ax3.LowerLimit = -10;
+
+	Axis ax4;
+	strcpy_s(ax4.Name, 2, "X");
+	strcpy_s(ax4.Units, 3, "mm");
+	ax4.Rotation = true;
+	ax4.UseLimits = true;
+	ax4.UpperLimit = 10;
+	ax4.LowerLimit = -10;
+
+	Axis ax5;
+	strcpy_s(ax5.Name, 2 ,"Y");
+	strcpy_s(ax5.Units, 3, "mm");
+	ax5.Rotation = true;
+	ax5.UseLimits = false;
+	ax5.UpperLimit = 10;
+	ax5.LowerLimit = -10;
+
+	Axis ax6;
+	strcpy_s(ax6.Name, 2, "Z");
+	strcpy_s(ax6.Units, 3, "mm");
+	ax6.Rotation = true;
+	ax6.UseLimits = false;
+	ax6.UpperLimit = 10;
+	ax6.LowerLimit = -10;
+
+	manipulatorInfo->AxisCount = 6;
 	manipulatorInfo->Axes[0] = ax1;
 	manipulatorInfo->Axes[1] = ax2;
+	manipulatorInfo->Axes[2] = ax3;
+	manipulatorInfo->Axes[3] = ax4;
+	manipulatorInfo->Axes[4] = ax5;
+	manipulatorInfo->Axes[5] = ax6;
 	
 	manipulatorInfo->HasSpeed = false;
 	return 0;
@@ -229,6 +266,22 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed)
 		sendbuf = "T?";
 		send_data(sendbuf);
 		curPos[1] = recv_data();
+
+		sendbuf = "F?";
+		send_data(sendbuf);
+		curPos[2] = recv_data();
+
+		sendbuf = "X?";
+		send_data(sendbuf);
+		curPos[3] = recv_data();
+
+		sendbuf = "Y?";
+		send_data(sendbuf);
+		curPos[4] = recv_data();
+
+		sendbuf = "Z?";
+		send_data(sendbuf);
+		curPos[5] = recv_data();
 
 	return 0;
 }
