@@ -239,14 +239,14 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 
 ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done movement ETC...
 {	
-	const char* move_buf = "STATUS?";
+	const char* move_buf = "STATUS?\n";
 	send_data(move_buf);
 	return recv_status_data();
 }
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
-	std::string str = "MOVR";
+	std::string str = "MOVR\n";
 	str += std::to_string(position[0]);
 	//str += "T" + std::to_string(position[1]); //We only want to change polar!
 	const char* c = str.c_str();
@@ -259,27 +259,27 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 int GDS_MA_ReadPos(double* curPos, double* curSpeed)
 {
 		
-		const char* sendbuf = "R?";
+		const char* sendbuf = "R?\n";
 		send_data(sendbuf);
 		curPos[0] = recv_data();
 
-		sendbuf = "T?";
+		sendbuf = "T?\n";
 		send_data(sendbuf);
 		curPos[1] = recv_data();
 
-		sendbuf = "P?";
+		sendbuf = "P?\n";
 		send_data(sendbuf);
 		curPos[2] = recv_data();
 
-		sendbuf = "X?";
+		sendbuf = "X?\n";
 		send_data(sendbuf);
 		curPos[3] = recv_data();
 
-		sendbuf = "Y?";
+		sendbuf = "Y?\n";
 		send_data(sendbuf);
 		curPos[4] = recv_data();
 
-		sendbuf = "Z?";
+		sendbuf = "Z?\n";
 		send_data(sendbuf);
 		curPos[5] = recv_data();
 

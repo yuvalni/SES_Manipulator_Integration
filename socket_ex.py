@@ -13,18 +13,18 @@ class Status(Enum):
 class SES_API:
     def __init__(self):
         self.HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-        self.PORT = 5000  # Port to listen on (non-privileged ports are > 1023)
+        self.PORT = 5011  # Port to listen on (non-privileged ports are > 1023)
         self.status =  Status.DONE
         self.conn = None
-        self.pos = {"P":3.14,"T":2.14,"F":86,"X":-2,"Y":8,"Z":-123}
-        self.move_reg = re.compile('(X|Y|Z|P|T|F)([+-]?([0-9]*[.])?[0-9]+)') #capturing X or Y or Z and float number
-        self.pos_reg = re.compile('(X|Y|Z|P|T|F)(\?)') #capturing X or Y or Z and float number
+        self.pos = {"R":3.14,"T":2.14,"P":86,"X":-2,"Y":8,"Z":-123}
+        self.move_reg = re.compile('(X|Y|Z|R|T|P)([+-]?([0-9]*[.])?[0-9]+)') #capturing X or Y or Z and float number
+        self.pos_reg = re.compile('(X|Y|Z|R|T|P)(\?)') #capturing X or Y or Z and float number
         #P - polar T- tilt  F - phi
     
     def move(self,data):
         self.status = Status.MOVING
-        print(data.decode("UTF-8"))
-        m = self.move_reg.findall(data.decode("UTF-8"))
+        print(data)
+        m = self.move_reg.findall(data)
         print (m)
         if m:
             axis, pos  = m[0][0] , m[0][1]
@@ -48,7 +48,7 @@ class SES_API:
         
     def send_pos(self,data):
          #axis = self.pos_reg.search(data.decode("UTF-8")).group(0)
-         axis = data.decode("UTF-8").replace("?","")
+         axis = data.replace("?","")
          #print('sending pos')
          #print("{}\n".format(self.pos[axis]))
          self.conn.send("{}\n".format(self.pos[axis]).encode())
@@ -62,7 +62,7 @@ class SES_API:
         self.conn.send("{}\n".format(self.status.value).encode())
     
     def handle_req(self,data):
-        if "STATUS" in data.decode("UTF-8"):
+        if "STATUS" in data:
             self.send_status()
         else:
             self.send_pos(data)
@@ -81,18 +81,19 @@ class SES_API:
                         data = self.conn.recv(512)
                         if data==b'':
                             continue
-                        if("?" in data.decode("UTF-8")):
-                            self.handle_req(data) #Handle data request
-                        elif "MOV" in data.decode("UTF-8"): #MOVX5.0 for example
-                            self.move(data) #handle move request
-                        elif "STOP" in data.decode("UTF-8"):
-                            self.stop()
-                        else:
-                            print(data) # anything else pleas?
-                        
-                        if data.decode("UTF-8")=="exit":
-                            # closing connection, but awaiting another one...
-                            break
+                        for data in data.decode("UTF-8").split('\n'):
+                            if("?" in data):
+                                self.handle_req(data) #Handle data request
+                            elif "MOV" in data: #MOVX5.0 for example
+                                self.move(data) #handle move request
+                            elif "STOP" in data:
+                                self.stop()
+                            else:
+                                print(data) # anything else pleas?
+                            
+                            if data=="exit":
+                                # closing connection, but awaiting another one...
+                                break
                     sleep(0.1)
                     
                 sleep(0.1)
