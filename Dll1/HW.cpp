@@ -136,7 +136,7 @@ int GDS_MA_Finalize() {
 	// shutdown the connection for sending since no more data will be sent
 	// the client can still use the ConnectSocket for receiving data
 	int Result;
-	const char* sendbuf = "exit";
+	const char* sendbuf = "exit\n";
 	send_data(sendbuf);
 	Result = shutdown(ConnectSocket, SD_SEND);
 	if (Result == SOCKET_ERROR) {
@@ -246,8 +246,8 @@ ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done mo
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
 {
-	std::string str = "MOVR\n";
-	str += std::to_string(position[0]);
+	std::string str = "MOVR";
+	str += std::to_string(position[0]) + "\n";
 	//str += "T" + std::to_string(position[1]); //We only want to change polar!
 	const char* c = str.c_str();
 
@@ -288,7 +288,7 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed)
 
 
 int GDS_MA_Stop() {
-	const char* sendbuf = "STOP";
+	const char* sendbuf = "STOP\n";
 	send_data(sendbuf);
 	return 0;
 }
