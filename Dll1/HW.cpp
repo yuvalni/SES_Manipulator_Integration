@@ -11,7 +11,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 #define DEFAULT_BUFLEN 512
-#define DEFAULT_PORT "5000"
+#define DEFAULT_PORT "5011"
 static WSADATA wsaData;
 static int iResult;
 static SOCKET ConnectSocket = INVALID_SOCKET;
