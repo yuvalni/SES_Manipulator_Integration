@@ -186,30 +186,30 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	strcpy_s(ax2.Name, 5, "Tilt");
 	strcpy_s(ax2.Units, 4, "Deg");
 	ax2.Rotation = true;
-	ax2.UseLimits = true;
-	ax2.UpperLimit = 10;
-	ax2.LowerLimit = -10;
+	ax2.UseLimits = false;
+	ax2.UpperLimit = 1000;
+	ax2.LowerLimit = -1000;
 
 	Axis ax3;
 	strcpy_s(ax3.Name, 4, "phi");
 	strcpy_s(ax3.Units, 4, "Deg");
 	ax3.Rotation = true;
-	ax3.UseLimits = true;
-	ax3.UpperLimit = 10;
-	ax3.LowerLimit = -10;
+	ax3.UseLimits = false;
+	ax3.UpperLimit = -180;
+	ax3.LowerLimit = 180;
 
 	Axis ax4;
 	strcpy_s(ax4.Name, 2, "X");
 	strcpy_s(ax4.Units, 3, "mm");
-	ax4.Rotation = true;
-	ax4.UseLimits = true;
+	ax4.Rotation = false;
+	ax4.UseLimits = false;
 	ax4.UpperLimit = 10;
 	ax4.LowerLimit = -10;
 
 	Axis ax5;
 	strcpy_s(ax5.Name, 2 ,"Y");
 	strcpy_s(ax5.Units, 3, "mm");
-	ax5.Rotation = true;
+	ax5.Rotation = false;
 	ax5.UseLimits = false;
 	ax5.UpperLimit = 10;
 	ax5.LowerLimit = -10;
@@ -217,10 +217,10 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	Axis ax6;
 	strcpy_s(ax6.Name, 2, "Z");
 	strcpy_s(ax6.Units, 3, "mm");
-	ax6.Rotation = true;
+	ax6.Rotation = false;
 	ax6.UseLimits = false;
-	ax6.UpperLimit = 10;
-	ax6.LowerLimit = -10;
+	ax6.UpperLimit = 0;
+	ax6.LowerLimit = -140;
 
 	manipulatorInfo->AxisCount = 6;
 	manipulatorInfo->Axes[0] = ax1;
