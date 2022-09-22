@@ -9,5 +9,4 @@ The messeges are handled by the manipulator program by running a thread that rec
 Included is a mock-up python script for checking purpose (socket_ex.py).<br>
 A complete and working implementation of a class handeling the connection can be found [here](https://github.com/yuvalni/ARPESmotors/blob/main/Class/SESInterface.py).
 
-
 > please note: I am not a professional programmer! The namings may be awkward, this might not be the most efficient or organized code - but it works.
