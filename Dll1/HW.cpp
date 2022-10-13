@@ -179,8 +179,8 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	strcpy_s(ax1.Units, 4, "Deg");
 	ax1.Rotation = true;
 	ax1.UseLimits = true;
-	ax1.UpperLimit = 10;
-	ax1.LowerLimit = -10;
+	ax1.UpperLimit = 20;
+	ax1.LowerLimit = -20;
 
 	Axis ax2;
 	strcpy_s(ax2.Name, 5, "Tilt");
