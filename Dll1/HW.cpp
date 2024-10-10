@@ -8,6 +8,10 @@
 #include <string>
 
 
+static bool g_isConnected = false;
+static HANDLE g_socketMutex = NULL;
+static const int SOCKET_TIMEOUT_MS = 5000; // 5 second timeout
+
 #pragma comment(lib, "Ws2_32.lib")
 
 #define DEFAULT_BUFLEN 512
@@ -20,108 +24,112 @@ static int recvbuflen = DEFAULT_BUFLEN;
 
 
 int initSocket() {
-	// Initialize Winsock
-	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (iResult != 0) {
-		printf("WSAStartup failed: %d\n", iResult);
-		return 1;
-	}
+    // Create mutex for thread-safe socket operations
+    g_socketMutex = CreateMutex(NULL, FALSE, NULL);
+    if (g_socketMutex == NULL) {
+        return 1;
+    }
 
+    // Initialize Winsock
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed: %d\n", iResult);
+        return 1;
+    }
 
-	struct addrinfo* result = NULL,
-		* ptr = NULL,
-		hints;
+    struct addrinfo* result = NULL, *ptr = NULL, hints;
+    ZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
 
-	ZeroMemory(&hints, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
+    iResult = getaddrinfo("127.0.0.1", DEFAULT_PORT, &hints, &result);
+    if (iResult != 0) {
+        printf("getaddrinfo failed: %d\n", iResult);
+        WSACleanup();
+        return 1;
+    }
 
-	iResult = getaddrinfo("127.0.0.1", DEFAULT_PORT, &hints, &result);
-	if (iResult != 0) {
-		printf("getaddrinfo failed: %d\n", iResult);
-		WSACleanup();
-		return 1;
-	}
+    ptr = result;
+    ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+    if (ConnectSocket == INVALID_SOCKET) {
+        printf("Error at socket(): %ld\n", WSAGetLastError());
+        freeaddrinfo(result);
+        WSACleanup();
+        return 1;
+    }
 
-	//SOCKET ConnectSocket = INVALID_SOCKET;
-	// Attempt to connect to the first address returned by
-	// the call to getaddrinfo
-	ptr = result;
+    // Set socket timeout
+    DWORD timeout = SOCKET_TIMEOUT_MS;
+    setsockopt(ConnectSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
+    setsockopt(ConnectSocket, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
 
-	// Create a SOCKET for connecting to server
-	ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
-		ptr->ai_protocol);
+    iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        closesocket(ConnectSocket);
+        ConnectSocket = INVALID_SOCKET;
+    }
 
-	if (ConnectSocket == INVALID_SOCKET) {
-		printf("Error at socket(): %ld\n", WSAGetLastError());
-		freeaddrinfo(result);
-		WSACleanup();
-		return 1;
-	}
+    freeaddrinfo(result);
 
-	iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
-	if (iResult == SOCKET_ERROR) {
-		closesocket(ConnectSocket);
-		ConnectSocket = INVALID_SOCKET;
-	}
-	// Should really try the next address returned by getaddrinfo
-	// if the connect call failed
-	// But for this simple example we just free the resources
-	// returned by getaddrinfo and print an error message
+    if (ConnectSocket == INVALID_SOCKET) {
+        printf("Unable to connect to server!\n");
+        WSACleanup();
+        return 1;
+    }
 
-	freeaddrinfo(result);
-
-	if (ConnectSocket == INVALID_SOCKET) {
-		printf("Unable to connect to server!\n");
-		WSACleanup();
-		return 1;
-	}
-
-
-	return 0;
+    g_isConnected = true;
+    return 0;
 }
 
-int send_data(const char* sendbuf)
-{
-	int Result;
-	Result = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
-	if (Result == SOCKET_ERROR) {
-		printf("send failed: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		return 1;
-	}
-	return 0;
+int send_data(const char* sendbuf) {
+    if (!g_isConnected) return 1;
+
+    WaitForSingleObject(g_socketMutex, INFINITE);
+    int Result = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
+    ReleaseMutex(g_socketMutex);
+
+    if (Result == SOCKET_ERROR) {
+        printf("send failed: %d\n", WSAGetLastError());
+        g_isConnected = false;
+        closesocket(ConnectSocket);
+        WSACleanup();
+        return 1;
+    }
+    return 0;
 }
 
 double recv_data() {
-	int Result;
-	Result = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-	if (Result > 0) {
-		printf("Bytes received: %d\n", Result);
-	}
-	else if (Result == 0)
-		printf("Connection closed\n");
-	else
-		printf("recv failed: %d\n", WSAGetLastError());
+    if (!g_isConnected) return 0.0;
 
-	return atof(recvbuf);
+    WaitForSingleObject(g_socketMutex, INFINITE);
+    int Result = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+    ReleaseMutex(g_socketMutex);
+
+    if (Result > 0) {
+        printf("Bytes received: %d\n", Result);
+        return atof(recvbuf);
+    }
+    else {
+        g_isConnected = false;
+        return 0.0;
+    }
 }
 
 ManipulatorStatus recv_status_data() {
-	int Result;
-	Result = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-	if (Result > 0) {
-		printf("Bytes received: %d\n", Result);
-	}
-	else if (Result == 0)
-		printf("Connection closed\n");
-	else
-		printf("recv failed: %d\n", WSAGetLastError());
+    if (!g_isConnected) return Done;
 
-	return static_cast<ManipulatorStatus>(atoi(recvbuf));
+    WaitForSingleObject(g_socketMutex, INFINITE);
+    int Result = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+    ReleaseMutex(g_socketMutex);
 
+    if (Result > 0) {
+        return static_cast<ManipulatorStatus>(atoi(recvbuf));
+    }
+    else {
+        g_isConnected = false;
+        return Done;
+    }
 }
 
 int GDS_MA_Initialize(void* mainWindow) //     Use this function to initialize objects and structures in a manipulator
@@ -133,36 +141,20 @@ int GDS_MA_Initialize(void* mainWindow) //     Use this function to initialize o
 }
 
 int GDS_MA_Finalize() {
-	// shutdown the connection for sending since no more data will be sent
-	// the client can still use the ConnectSocket for receiving data
-	int Result;
-	const char* sendbuf = "exit\n";
-	send_data(sendbuf);
-	Result = shutdown(ConnectSocket, SD_SEND);
-	if (Result == SOCKET_ERROR) {
-		printf("shutdown failed: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		return 1;
-	}
+    if (g_socketMutex != NULL) {
+        CloseHandle(g_socketMutex);
+        g_socketMutex = NULL;
+    }
 
-	// Receive data until the server closes the connection
-
-
-
-	// shutdown the send half of the connection since no more data will be sent
-	iResult = shutdown(ConnectSocket, SD_SEND);
-	if (iResult == SOCKET_ERROR) {
-		printf("shutdown failed: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		return 1;
-	}
-
-	// cleanup
-	closesocket(ConnectSocket);
-	WSACleanup();
-	return 0;
+    if (g_isConnected) {
+        const char* sendbuf = "exit\n";
+        send_data(sendbuf);
+        shutdown(ConnectSocket, SD_SEND);
+        closesocket(ConnectSocket);
+        WSACleanup();
+        g_isConnected = false;
+    }
+    return 0;
 }
 
 char* GDS_MA_GetLibInfo() {
@@ -237,11 +229,15 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 
 
 
-ManipulatorStatus GDS_MA_Status() // Here we handle the status.. moving, done movement ETC...
-{	
-	const char* move_buf = "STATUS?\n";
-	send_data(move_buf);
-	return recv_status_data();
+
+ManipulatorStatus GDS_MA_Status() {
+    if (!g_isConnected) return Done;
+
+    const char* move_buf = "STATUS?\n";
+    if (send_data(move_buf) != 0) {
+        return Done;
+    }
+    return recv_status_data();
 }
 
 int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the motors to a location. This does not handle anything else
@@ -256,34 +252,37 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 }
 
 
-int GDS_MA_ReadPos(double* curPos, double* curSpeed)
-{
-		
-		const char* sendbuf = "R?\n";
-		send_data(sendbuf);
-		curPos[0] = recv_data();
+int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
+    if (!g_isConnected) {
+        // Fill with zeros if disconnected
+        for (int i = 0; i < 6; i++) {
+            curPos[i] = 0.0;
+        }
+        return 1;
+    }
 
-		sendbuf = "T?\n";
-		send_data(sendbuf);
-		curPos[1] = recv_data();
+    const char* queries[] = {"R?\n", "T?\n", "P?\n", "X?\n", "Y?\n", "Z?\n"};
+    
+    for (int i = 0; i < 6; i++) {
+        if (send_data(queries[i]) != 0) {
+            g_isConnected = false;
+            // Fill remaining positions with zeros
+            for (; i < 6; i++) {
+                curPos[i] = 0.0;
+            }
+            return 1;
+        }
+        curPos[i] = recv_data();
+        if (!g_isConnected) {
+            // Fill remaining positions with zeros
+            for (i++; i < 6; i++) {
+                curPos[i] = 0.0;
+            }
+            return 1;
+        }
+    }
 
-		sendbuf = "P?\n";
-		send_data(sendbuf);
-		curPos[2] = recv_data();
-
-		sendbuf = "X?\n";
-		send_data(sendbuf);
-		curPos[3] = recv_data();
-
-		sendbuf = "Y?\n";
-		send_data(sendbuf);
-		curPos[4] = recv_data();
-
-		sendbuf = "Z?\n";
-		send_data(sendbuf);
-		curPos[5] = recv_data();
-
-	return 0;
+    return 0;
 }
 
 
