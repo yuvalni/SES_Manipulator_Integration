@@ -376,12 +376,11 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 
 	send_data(c);
 
-    //here i want to set currennt (position 6 ax7)
     std::string strC = "Curr";
     strC += std::to_string(position[6]);
     strC += "\n";
-    const char* c2 = strC.c_str();
-    //send_data_2(c2)
+    send_data2(strC.c_str());
+
 	return 0;
 }
 
