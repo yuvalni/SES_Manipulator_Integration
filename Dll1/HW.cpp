@@ -19,6 +19,7 @@ static const int SOCKET_TIMEOUT_MS = 5000; // 5 second timeout
 #define SECONDARY_PORT "5012"
 static WSADATA wsaData;
 static int iResult;
+static int iResult2;
 static SOCKET ConnectSocket = INVALID_SOCKET;
 static SOCKET ConnectSocket2 = INVALID_SOCKET;
 static char recvbuf[DEFAULT_BUFLEN];
@@ -26,18 +27,7 @@ static int recvbuflen = DEFAULT_BUFLEN;
 
 
 int initSocket() {
-    // Create mutex for thread-safe socket operations
-    g_socketMutex = CreateMutex(NULL, FALSE, NULL);
-    if (g_socketMutex == NULL) {
-        return 1;
-    }
 
-    // Initialize Winsock
-    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult != 0) {
-        printf("WSAStartup failed: %d\n", iResult);
-        return 1;
-    }
 
     struct addrinfo* result = NULL, *ptr = NULL, hints;
     ZeroMemory(&hints, sizeof(hints));
@@ -92,9 +82,9 @@ int initSocket2() {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
-    iResult = getaddrinfo("127.0.0.1", SECONDARY_PORT, &hints, &result);
-    if (iResult != 0) {
-        printf("getaddrinfo failed for secondary socket: %d\n", iResult);
+    iResult2 = getaddrinfo("127.0.0.1", SECONDARY_PORT, &hints, &result);
+    if (iResult2 != 0) {
+        printf("getaddrinfo failed for secondary socket: %d\n", iResult2);
         WSACleanup();
         return 1;
     }
@@ -112,8 +102,8 @@ int initSocket2() {
     setsockopt(ConnectSocket2, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
     setsockopt(ConnectSocket2, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
 
-    iResult = connect(ConnectSocket2, ptr->ai_addr, (int)ptr->ai_addrlen);
-    if (iResult == SOCKET_ERROR) {
+    iResult2 = connect(ConnectSocket2, ptr->ai_addr, (int)ptr->ai_addrlen);
+    if (iResult2 == SOCKET_ERROR) {
         closesocket(ConnectSocket2);
         ConnectSocket2 = INVALID_SOCKET;
     }
@@ -233,6 +223,25 @@ int GDS_MA_Initialize(void* mainWindow) //     Use this function to initialize o
 										//hardware library.This function is called when a new manipulator hardware
 										//library is loaded in the manipulator library.
 {
+    // Create mutex for thread-safe socket operations
+    g_socketMutex = CreateMutex(NULL, FALSE, NULL);
+    if (g_socketMutex == NULL) {
+        return 1;
+    }
+
+    // Initialize Winsock
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed: %d\n", iResult);
+        return 1;
+    }
+    // Initialize Winsock
+    iResult2 = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult2 != 0) {
+        printf("WSAStartup failed: %d\n", iResult2);
+        return 1;
+    }
+
     if (initSocket() != 0) return 1;
     if (initSocket2() != 0) return 1;
     return 0;
@@ -275,22 +284,6 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	ax1.UpperLimit = 20;
 	ax1.LowerLimit = -20;
 
-	Axis ax2;
-	strcpy_s(ax2.Name, 5, "Tilt");
-	strcpy_s(ax2.Units, 4, "Deg");
-	ax2.Rotation = true;
-	ax2.UseLimits = false;
-	ax2.UpperLimit = 1000;
-	ax2.LowerLimit = -1000;
-
-	Axis ax3;
-	strcpy_s(ax3.Name, 4, "phi");
-	strcpy_s(ax3.Units, 4, "Deg");
-	ax3.Rotation = true;
-	ax3.UseLimits = false;
-	ax3.UpperLimit = -1000;
-	ax3.LowerLimit = 1000;
-
 	Axis ax4;
 	strcpy_s(ax4.Name, 2, "X");
 	strcpy_s(ax4.Units, 3, "mm");
@@ -331,15 +324,14 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
     ax8.UpperLimit = -4000;
     ax8.LowerLimit = -4000;
 
-	manipulatorInfo->AxisCount = 8;
+	manipulatorInfo->AxisCount = 6;
 	manipulatorInfo->Axes[0] = ax1;
-	manipulatorInfo->Axes[1] = ax2;
-	manipulatorInfo->Axes[2] = ax3;
-	manipulatorInfo->Axes[3] = ax4;
-	manipulatorInfo->Axes[4] = ax5;
-	manipulatorInfo->Axes[5] = ax6;
-    manipulatorInfo->Axes[6] = ax7;
-    manipulatorInfo->Axes[7] = ax8;
+	manipulatorInfo->Axes[1] = ax4;
+	manipulatorInfo->Axes[2] = ax5;
+	manipulatorInfo->Axes[3] = ax6;
+	manipulatorInfo->Axes[4] = ax7;
+	manipulatorInfo->Axes[5] = ax8;
+    
 	
 	manipulatorInfo->HasSpeed = false;
 	return 0;
@@ -365,11 +357,11 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 	strr += std::to_string(position[0]);
 	//str += "T" + std::to_string(position[1]); //We only want to change polar!
     std::string strx = "MOVX";
-    strx += std::to_string(position[3]);
+    strx += std::to_string(position[1]);
     std::string stry = "MOVY";
-    stry += std::to_string(position[4]);
+    stry += std::to_string(position[2]);
     std::string strz = "MOVZ";
-    strz += std::to_string(position[5]);
+    strz += std::to_string(position[3]);
     std::string str;
     str = strr + "\n" +  strx + "\n" +  stry + "\n" +  strz + "\n";
 	const char* c = str.c_str();
@@ -377,7 +369,7 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 	send_data(c);
 
     std::string strC = "Curr";
-    strC += std::to_string(position[6]);
+    strC += std::to_string(position[4]);
     strC += "\n";
     send_data2(strC.c_str());
 
@@ -400,7 +392,7 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
         if (send_data(queries[i]) != 0) {
             g_isConnected = false;
             // Fill remaining positions with zeros
-            for (; i < 8; i++) {
+            for (; i < 6; i++) {
                 curPos[i] = 0.0;
             }
             return 1;
@@ -408,7 +400,7 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
         curPos[i] = recv_data();
         if (!g_isConnected) {
             // Fill remaining positions with zeros
-            for (i++; i < 8; i++) {
+            for (i++; i < 6; i++) {
                 curPos[i] = 0.0;
             }
             return 1;
@@ -418,26 +410,26 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
     if (send_data2("Curr?\n") != 0) {
         g_isConnected = false;
         // Fill remaining positions with zeros
-            curPos[6] = 0.0;
-            curPos[7] = 0.0;
+            curPos[4] = 0.0;
+            curPos[5] = 0.0;
         return 1;
     }
-    curPos[7] = recv_data();
+    curPos[4] = recv_data();
     if (!g_isConnected) {
         // Fill remaining positions with zeros
-           curPos[6] = 0.0;
-           curPos[7] = 0.0;
+           curPos[4] = 0.0;
+           curPos[5] = 0.0;
         return 1;
     }
 
     if (send_data2("Volt?\n") != 0) {
         g_isConnected = false;
-        curPos[7] = 0.0;
+        curPos[5] = 0.0;
         return 1;
     }
-    curPos[7] = recv_data();
+    curPos[5] = recv_data();
     if (!g_isConnected) {
-        curPos[7] = 0.0;
+        curPos[5] = 0.0;
         return 1;
     }
     
