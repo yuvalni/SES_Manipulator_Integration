@@ -9,7 +9,9 @@
 
 
 static bool g_isConnected = false;
+static bool g_isConnected2 = false;
 static HANDLE g_socketMutex = NULL;
+static HANDLE g_socketMutex2 = NULL;
 static const int SOCKET_TIMEOUT_MS = 5000; // 5 second timeout
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -19,7 +21,7 @@ static const int SOCKET_TIMEOUT_MS = 5000; // 5 second timeout
 #define SECONDARY_PORT "5012"
 static WSADATA wsaData;
 static int iResult;
-static int iResult2;
+//static int iResult2;
 static SOCKET ConnectSocket = INVALID_SOCKET;
 static SOCKET ConnectSocket2 = INVALID_SOCKET;
 static char recvbuf[DEFAULT_BUFLEN];
@@ -27,7 +29,11 @@ static int recvbuflen = DEFAULT_BUFLEN;
 
 
 int initSocket() {
-
+    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed: %d\n", iResult);
+        return 1;
+    }
 
     struct addrinfo* result = NULL, *ptr = NULL, hints;
     ZeroMemory(&hints, sizeof(hints));
@@ -82,9 +88,9 @@ int initSocket2() {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
-    iResult2 = getaddrinfo("127.0.0.1", SECONDARY_PORT, &hints, &result);
-    if (iResult2 != 0) {
-        printf("getaddrinfo failed for secondary socket: %d\n", iResult2);
+    iResult = getaddrinfo("127.0.0.1", SECONDARY_PORT, &hints, &result);
+    if (iResult != 0) {
+        printf("getaddrinfo failed for secondary socket: %d\n", iResult);
         WSACleanup();
         return 1;
     }
@@ -92,18 +98,19 @@ int initSocket2() {
     ptr = result;
     ConnectSocket2 = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
     if (ConnectSocket2 == INVALID_SOCKET) {
-        printf("Error at socket2(): %ld\n", WSAGetLastError());
-        freeaddrinfo(result);
+        printf("Unable to connect to secondary server!\n");
         WSACleanup();
+        g_isConnected2 = false;
         return 1;
     }
+    g_isConnected2 = true;
 
     DWORD timeout = SOCKET_TIMEOUT_MS;
     setsockopt(ConnectSocket2, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
     setsockopt(ConnectSocket2, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
 
-    iResult2 = connect(ConnectSocket2, ptr->ai_addr, (int)ptr->ai_addrlen);
-    if (iResult2 == SOCKET_ERROR) {
+    iResult = connect(ConnectSocket2, ptr->ai_addr, (int)ptr->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
         closesocket(ConnectSocket2);
         ConnectSocket2 = INVALID_SOCKET;
     }
@@ -140,16 +147,17 @@ int send_data(const char* sendbuf) {
 
 
 int send_data2(const char* sendbuf) {
-    if (ConnectSocket2 == INVALID_SOCKET) return 1;
+    if (!g_isConnected2) return 1;
 
-    WaitForSingleObject(g_socketMutex, INFINITE);
+    WaitForSingleObject(g_socketMutex2, INFINITE);
     int Result = send(ConnectSocket2, sendbuf, (int)strlen(sendbuf), 0);
-    ReleaseMutex(g_socketMutex);
+    ReleaseMutex(g_socketMutex2);
 
     if (Result == SOCKET_ERROR) {
         printf("send failed on socket2: %d\n", WSAGetLastError());
+        g_isConnected2 = false;
         closesocket(ConnectSocket2);
-        ConnectSocket2 = INVALID_SOCKET;
+        //ConnectSocket2 = INVALID_SOCKET;
         return 1;
     }
     return 0;
@@ -174,19 +182,21 @@ double recv_data() {
 
 
 double recv_data2() {
-    if (ConnectSocket2 == INVALID_SOCKET) return 0.0;
+    if (!g_isConnected2) return 0.0;
 
-    WaitForSingleObject(g_socketMutex, INFINITE);
+    WaitForSingleObject(g_socketMutex2, INFINITE);
     int Result = recv(ConnectSocket2, recvbuf, recvbuflen, 0);
-    ReleaseMutex(g_socketMutex);
+    ReleaseMutex(g_socketMutex2);
 
     if (Result > 0) {
         printf("Bytes received on socket2: %d\n", Result);
         return atof(recvbuf);
     }
     else {
+        g_isConnected2 = false;
         closesocket(ConnectSocket2);
-        ConnectSocket2 = INVALID_SOCKET;
+
+        //ConnectSocket2 = INVALID_SOCKET;
         return 0.0;
     }
 }
@@ -229,18 +239,21 @@ int GDS_MA_Initialize(void* mainWindow) //     Use this function to initialize o
         return 1;
     }
 
-    // Initialize Winsock
-    iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult != 0) {
-        printf("WSAStartup failed: %d\n", iResult);
+    // Create mutex for ConnectSocket2
+    g_socketMutex2 = CreateMutex(NULL, FALSE, NULL);
+    if (g_socketMutex2 == NULL) {
+        //CloseHandle(g_socketMutex2);
         return 1;
     }
+
     // Initialize Winsock
-    iResult2 = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult2 != 0) {
-        printf("WSAStartup failed: %d\n", iResult2);
-        return 1;
-    }
+    
+    // Initialize Winsock
+    //iResult2 = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    //if (iResult2 != 0) {
+     //   printf("WSAStartup failed: %d\n", iResult2);
+      //  return 1;
+    //}
 
     if (initSocket() != 0) return 1;
     if (initSocket2() != 0) return 1;
@@ -256,6 +269,10 @@ int GDS_MA_Finalize() {
         g_socketMutex = NULL;
     }
 
+    if (g_socketMutex2 != NULL) {
+        CloseHandle(g_socketMutex2);
+        g_socketMutex2 = NULL;
+    }
     if (g_isConnected) {
         const char* sendbuf = "exit\n";
         send_data(sendbuf);
@@ -280,7 +297,7 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
 	strcpy_s(ax1.Name, 6 ,"Polar");
 	strcpy_s(ax1.Units, 4, "Deg");
 	ax1.Rotation = true;
-	ax1.UseLimits = true;
+	ax1.UseLimits = false;
 	ax1.UpperLimit = 20;
 	ax1.LowerLimit = -20;
 
@@ -321,8 +338,8 @@ int GDS_MA_GetManipulatorInfo(ManipulatorInfo* manipulatorInfo) {
     strcpy_s(ax8.Units, 3, "mV");
     ax8.Rotation = false;
     ax8.UseLimits = false;
-    ax8.UpperLimit = -4000;
-    ax8.LowerLimit = -4000;
+    ax8.UpperLimit = 140;
+    ax8.LowerLimit = -140;
 
 	manipulatorInfo->AxisCount = 6;
 	manipulatorInfo->Axes[0] = ax1;
@@ -380,28 +397,28 @@ int GDS_MA_MoveTo(const double* position, const double* speed) // This sends the
 int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
     if (!g_isConnected) {
         // Fill with zeros if disconnected
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 4; i++) {
             curPos[i] = 0.0;
         }
         return 1;
     }
 
-    const char* queries[] = {"R?\n", "T?\n", "P?\n", "X?\n", "Y?\n", "Z?\n"};
+    const char* queries[] = {"R?\n", "X?\n", "Y?\n", "Z?\n"};
     
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 4; i++) {
         if (send_data(queries[i]) != 0) {
             g_isConnected = false;
             // Fill remaining positions with zeros
-            for (; i < 6; i++) {
-                curPos[i] = 0.0;
+            for (; i < 4; i++) {
+                curPos[i] = 99.9;
             }
             return 1;
         }
         curPos[i] = recv_data();
         if (!g_isConnected) {
             // Fill remaining positions with zeros
-            for (i++; i < 6; i++) {
-                curPos[i] = 0.0;
+            for (i++; i < 4; i++) {
+                curPos[i] = 99.9;
             }
             return 1;
         }
@@ -414,7 +431,7 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
             curPos[5] = 0.0;
         return 1;
     }
-    curPos[4] = recv_data();
+    curPos[4] = recv_data2();
     if (!g_isConnected) {
         // Fill remaining positions with zeros
            curPos[4] = 0.0;
@@ -427,7 +444,7 @@ int GDS_MA_ReadPos(double* curPos, double* curSpeed) {
         curPos[5] = 0.0;
         return 1;
     }
-    curPos[5] = recv_data();
+    curPos[5] = recv_data2();
     if (!g_isConnected) {
         curPos[5] = 0.0;
         return 1;
